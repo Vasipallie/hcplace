@@ -15,14 +15,21 @@ const app = express();
 app.use(cookieParser());
 const supalink = process.env.SUPALINK ;
 const supakey = process.env.SUPAKEY ;
-
-const supabase = createClient(supalink, supakey); 
+/* 
+const supabase = createClient(supalink, supakey);  */
 
 // Middleware data stuff, important for app to run
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'views')));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+app.get('/', (req, res) => {
+    res.render('index', { title: 'hc/place' });
+});
+
+app.get('/:id', (req, res) => {
+    res.render('404', { title: '404' });
+});
 
 //Server start 
 app.listen(3000, () => {

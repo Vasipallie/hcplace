@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hc/place</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+        *, *::before, *::after{
+            box-sizing:border-box;
+        }
+        html,body{
+            margin:0;
+            min-height:100%;
+            background:url('paper.png') repeat;
+            background-color:#FCF8E7;
+            font-family:'Instrument Serif', serif;
+            font-size:clamp(1rem, 1.2vw + 0.75rem, 1.2rem);
+        }
+        body{
+            display:flex;
+            flex-direction:column;
+            gap:1rem;
+            padding:0 clamp(0.75rem, 3vw, 3rem);
+        }
+        main{
+            width:min(100%, 70rem);
+            margin:0 auto;
+        }
+        .content{
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            gap:1rem;
+        }
+        .nav{
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+        }
+        .nav img{
+            display:block;
+            width:min(100%, 26rem);
+            height:auto;
+        }
+        .nav-links{
+            display:flex;
+            flex-wrap:wrap;
+            justify-content:center;
+            align-items:center;
+            width:100%;
+            padding:0.45rem 0.75rem;
+            text-align:center;
+            border-block:0.2em #000000 double;
+        }
+        .nav-links span{
+            max-width:70rem;
+        }
+        a{
+            color:#338eda;
+            font-weight:bold;
+            overflow-wrap:anywhere;
+        }
+        a:hover{
+            color:#a633d6;
+        }
+        iframe{
+            display:block;
+            width:min(90%, 43rem);
+            aspect-ratio:16 / 9;
+            height:auto;
+            margin:0;
+            border:0;
+            margin-top:1rem;
+        }
+        .footer{
+            margin-top:auto;
+        }
+        .button{
+            display:block;
+            width:fit-content;
+            max-width:100%;
+            margin:0 auto;
+            padding:0.5em 1em;
+            background-color:#ec3750;
+            color:white;
+            text-decoration:none;
+            text-align:center;
+            border-radius:0.3em;
+        }
+        .button:hover{
+            background-color:#a633d6;
+            color:white;
+        }
+        .alert{
+            background-color:#ec3750;
+            color:white;
+            text-align:center;
+            padding:0.3em;
+        }
+        .alert a{
+            color:white;
+            font-weight:bold;
+        }
+        .alert a:hover{
+            color:#ffee00;
+        }
+        .subtitle{
+            display:block;
+            text-align:center;
+            max-width:48rem;
+        }
+        @media (max-width:30rem){
+            body{
+                gap:0.75rem;
+                padding-inline:0.5rem;
+            }
+            .nav-links{
+                padding-inline:0.4rem;
+            }
+            .alert{
+                line-height:1.25;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="alert">
+        I couldn't find that page, its not meant to be there, or its still a wip. You might never know ;)
+    </div>
+<main>
+    <div class="nav">
+        <img src="hcplace.svg" alt="hc/place">
+        <div class="nav-links">
+            <span>An unofficial community project @ HackClub. View more @ <a href="https://hackclub.enterprise.slack.com/archives/C0C12BXC7ME">#vasis-room</a></span>
+        </div>
+    </div>
+    <div class="content">
+        <iframe src="https://www.youtube.com/embed/NznHMCHy79s?si=Pr67Y18BRW7xiXPA" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <span class="subtitle">It's an empty canvas with no strings attached. Somewhere in the world, a screen is updating. and <strong>You're</strong> part of it</span>
+        <a href="/place" class="button">Visit the hc/place canvas</a>
+    </div>
+</main>
+    <div class="nav-links footer">
+       <span>An unofficial project @ hackclub, view the code on <a href="https://github.com/vasipallie/hcplace">GitHub</a></span>
+    </div>
+</body>
+</html>
