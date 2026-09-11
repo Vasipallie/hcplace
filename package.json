@@ -1,0 +1,26 @@
+{
+  "name": "hcplace",
+  "version": "1.0.0",
+  "description": "a r/place inspiration",
+  "repository": {
+    "type": "git",
+    "url": "hcplace"
+  },
+  "license": "ISC",
+  "author": "vasi",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "http": "^0.0.1-security",
+    "path": "^0.12.7",
+    "socket.io": "^4.8.3",
+    "url": "^0.11.4"
+  }
+}

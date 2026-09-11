@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hc/place</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+        html,body{
+            margin:0;
+            padding-inline:0.5em;
+            background:url('paper.png') repeat;
+            background-color:#FCF8E7;
+            font-family:'Instrument Serif', serif;
+            font-size:1.2em;
+
+        }
+        .nav{
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+        }
+        .nav img{
+            width:40vw;
+            margin:0;
+            padding:0;
+        }
+        .nav-links{
+            display:flex;
+            flex-direction:row;
+            justify-content:center;
+            align-items:center;
+            border-block:0.2em #000000 double;
+            width:100%;
+        }
+        a{
+            color:#338eda;
+            font-weight:bold;
+        }
+        a:hover{
+            color:#a633d6;
+        }
+        iframe{
+            display:block;
+            width:60%;
+            max-width:100%;
+            aspect-ratio:16 / 9;
+            height:auto;
+            margin:1em auto;
+        }
+        .footer{
+            position:fixed;
+            bottom:0;
+            left:0;
+        }
+        .button{
+            display:block;
+            width:fit-content;
+            margin:1em auto;
+            padding:0.5em 1em;
+            background-color:#ec3750;
+            color:white;
+            text-decoration:none;
+            border-radius:0.3em;
+        }
+        .button:hover{
+            background-color:#a633d6;
+            color:white;
+        }
+        .alert{
+            background-color:#ec3750;
+            color:white;
+            text-align:center;
+            padding:0.3em;
+        }
+        .alert a{
+            color:white;
+            font-weight:bold;
+        }
+        .alert a:hover{
+            color:#ffee00;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert">
+        hc/place is currently being developed, check <a href="https://hackclub.enterprise.slack.com/archives/C0C12BXC7ME">#vasis-room</a> for updates!
+    </div>
+    <div class="nav">
+        <img src="hcplace.svg" alt="hc/place">
+        <div class="nav-links">
+            <span>An unofficial community project @ HackClub. View more @ <a href="https://hackclub.enterprise.slack.com/archives/C0C12BXC7ME">#vasis-room</a></span>
+        </div>
+    </div>
+    <iframe width="560" height="315" src="https://www.youtube.com/embed/NznHMCHy79s?si=Pr67Y18BRW7xiXPA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    <a href="/place" class="button">Visit the hc/place canvas</a>    
+    <div class="nav-links footer">
+       <span>An unofficial project @ hackclub, view the code on <a href="https://github.com/vasipallie/hcplace">GitHub</a></span>
+    </div>
+</body>
+</html>
