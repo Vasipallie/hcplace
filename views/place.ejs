@@ -29,10 +29,11 @@
             margin:0 auto;
         }
         .content{
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            gap:1rem;
+            display:grid;
+            grid-template-columns:minmax(0, 1fr) minmax(10rem, 16rem);
+            align-items:start;
+            gap:0.3rem;
+            margin-top:0.3rem;
         }
         .nav{
             display:flex;
@@ -68,12 +69,19 @@
         }
         iframe{
             display:block;
-            width:min(90%, 43rem);
+            width:100%;
             aspect-ratio:16 / 9;
             height:auto;
             margin:0;
             border:0;
-            margin-top:1rem;
+        }
+        canvas{
+            display:block;
+            width:100%;
+            height:auto;
+            aspect-ratio:16 / 9;
+            background-color:#ffffff;
+            border:2px solid #444444;
         }
         .footer{
             margin-top:auto;
@@ -112,10 +120,27 @@
             text-align:center;
             max-width:48rem;
         }
+        .holdes{
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            width:100%;
+            min-width:0;
+            height:auto;
+            gap:0.2rem;
+            
+        }
         @media (max-width:30rem){
             body{
                 gap:0.75rem;
                 padding-inline:0.5rem;
+            }
+            .content{
+                grid-template-columns:1fr;
+            }
+            iframe{
+                max-width:16rem;
+                justify-self:center;
             }
             .nav-links{
                 padding-inline:0.4rem;
@@ -124,11 +149,28 @@
                 line-height:1.25;
             }
         }
+        .color{
+            display:block;
+            width:2rem;
+            aspect-ratio:1 / 1;
+            border:0.15rem solid #000000;
+            margin:0.25rem;
+            
+        }
+        .colors{
+            background-color:#ffffff;
+            border:0.1rem solid #000000;
+            border-radius:0.15rem;
+            padding:0.15rem;
+            width:100%;
+            display:flex;
+            flex-wrap:wrap;
+        }
     </style>
 </head>
 <body>
     <div class="alert">
-        hc/place is currently being developed, check <a href="https://hackclub.enterprise.slack.com/archives/C0C12BXC7ME">#vasis-room</a> for updates!
+        Welcome to hc/place, <%=locals.name%>!
     </div>
 <main>
     <div class="nav">
@@ -138,13 +180,29 @@
         </div>
     </div>
     <div class="content">
-        <iframe src="https://www.youtube.com/embed/NznHMCHy79s?si=Pr67Y18BRW7xiXPA" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-        <span class="subtitle">It's an empty canvas with no strings attached. Somewhere in the world, a screen is updating. and <strong>You're</strong> part of it</span>
-        <a href="/place" class="button">Visit the hc/place canvas</a>
+        <canvas id="place" width="1280" height="720"></canvas>
+        <div class="holdes">
+            <iframe src="https://www.youtube.com/embed/NznHMCHy79s?si=Pr67Y18BRW7xiXPA" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            <div class="colors">
+                <div class="color" style="background-color:#000000;" data-color="#000000"></div>
+                <div class="color" style="background-color:#ffffff;" data-color="#ffffff"></div>
+                <div class="color" style="background-color:#7f7f7f;" data-color="#7f7f7f"></div>
+                <div class="color" style="background-color:#c3c3c3;" data-color="#c3c3c3"></div>
+                <div class="color" style="background-color:#880015;" data-color="#880015"></div>
+                <div class="color" style="background-color:#ed1c24;" data-color="#ed1c24"></div>
+                <div class="color" style="background-color:#ff7f27;" data-color="#ff7f27"></div>
+                <div class="color" style="background-color:#fff200;" data-color="#fff200"></div>
+                <div class="color" style="background-color:#22b14c;" data-color="#22b14c"></div>
+                <div class="color" style="background-color:#00a2e8;" data-color="#00a2e8"></div>
+                <div class="color" style="background-color:#3f48cc;" data-color="#3f48cc"></div>
+                <div class="color" style="background-color:#a349a4;" data-color="#a349a4"></div>
+                <div class="color" style="background-color:#ffaec9;" data-color="#ffaec9"></div>
+                <div class="color" style="background-color:#b97a57;" data-color="#b97a57"></div>
+                <div class="color" style="background-color:#7092be;" data-color="#7092be"></div>
+                <div class="color" style="background-color:#99d9ea;" data-color="#99d9ea"></div>
+            </div>
+        </div>
     </div>
 </main>
-    <div class="nav-links footer">
-       <span>An unofficial project @ hackclub, view the code on <a href="https://github.com/vasipallie/hcplace">GitHub</a></span>
-    </div>
 </body>
 </html>
