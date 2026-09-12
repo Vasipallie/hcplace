@@ -205,7 +205,7 @@
         <h3>Live Stats</h3>
         <p>Active Admitted Users: <strong><%= locals.activeCount %></strong></p>
         <p>Users in Queue: <strong><%= locals.queueCount %></strong></p>
-        <p>Canvas Dimensions: <strong><%= locals.gridWidth %> x <%= locals.gridHeight %></strong></p>
+        <p>Canvas Dimensions: <strong><span id="grid-dims"><%= locals.gridWidth %> x <%= locals.gridHeight %></span></strong></p>
     </div>
 
     <div class="card">
@@ -389,6 +389,15 @@
             const data = await res.json();
             gridWidth = data.width;
             gridHeight = data.height;
+
+            const dimsEl = document.getElementById('grid-dims');
+            if (dimsEl) dimsEl.textContent = `${gridWidth} x ${gridHeight}`;
+
+            const inputW = document.getElementById('resize-w');
+            const inputH = document.getElementById('resize-h');
+            if (inputW && !inputW.matches(':focus')) inputW.value = gridWidth;
+            if (inputH && !inputH.matches(':focus')) inputH.value = gridHeight;
+
             bufferCanvas.width = gridWidth;
             bufferCanvas.height = gridHeight;
             bufferCtx.fillStyle = '#ffffff';
@@ -636,7 +645,13 @@
         const width = parseInt(document.getElementById('resize-w').value);
         const height = parseInt(document.getElementById('resize-h').value);
         const msg = document.getElementById('resize-msg');
-        if (isNaN(width) || isNaN(height)) return;
+        if (isNaN(width) || isNaN(height) || width < 1 || height < 1) {
+            msg.textContent = 'Please enter valid positive dimensions.';
+            msg.style.color = '#ec3750';
+            return;
+        }
+        msg.textContent = 'Updating dimensions...';
+        msg.style.color = '#333333';
         try {
             const res = await fetch('/api/admin/resize', {
                 method: 'POST',
@@ -644,8 +659,17 @@
                 body: JSON.stringify({ width, height })
             });
             const data = await res.json();
+            if (data.ok) {
+                msg.textContent = `Dimensions updated to ${width} x ${height}!`;
+                msg.style.color = '#22b14c';
+                await loadGrid();
+            } else {
+                msg.textContent = `Error: ${data.error || data.message || 'Failed to update dimensions.'}`;
+                msg.style.color = '#ec3750';
+            }
         } catch (e) {
-            msg.textContent = 'Request failed.';
+            msg.textContent = 'Request failed: ' + e.message;
+            msg.style.color = '#ec3750';
         }
     }
 </script>

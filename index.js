@@ -19,11 +19,11 @@ app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'views')));
 
-const supabaseUrl = process.env.SUPALINK || '';
-const supabaseAnonKey = process.env.SUPAKEY || '';
-const supabaseServiceKey = process.env.SUPA_SERVICE_KEY || '';
-const supabase = (supabaseUrl && supabaseServiceKey)
-    ? createClient(supabaseUrl, supabaseServiceKey)
+const supabaseUrl = process.env.SUPALINK;
+const supabaseAnonKey = process.env.SUPAKEY;
+const supabaseServiceKey = process.env.SUPA_SERVICE_KEY;
+const supabase = (supabaseUrl && (supabaseServiceKey || supabaseAnonKey))
+    ? createClient(supabaseUrl, supabaseServiceKey || supabaseAnonKey)
     : null;
 
 const HCA_CID = process.env.HCA_CID;
@@ -36,9 +36,27 @@ const HEARTBEAT_TIMEOUT_MS = parseInt(process.env.HEARTBEAT_TIMEOUT_MS) || 30000
 
 const sessionCookieName = 'hcplace_session';
 const oauthStateCookieName = 'hcplace_oauth_state';
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 const sessionCookieMaxAge = 1000 * 60 * 60 * 24 * 30;
 const rateLimitMap = new Map();
+const bannedUsersSet = new Set();
+
+async function isUserBanned(slackId) {
+    if (!slackId) return false;
+    if (bannedUsersSet.has(slackId)) return true;
+    if (supabase) {
+        const { data: user } = await supabase
+            .from('users')
+            .select('is_banned')
+            .eq('slack_id', slackId)
+            .single();
+        if (user?.is_banned) {
+            bannedUsersSet.add(slackId);
+            return true;
+        }
+    }
+    return false;
+}
 
 const VALID_COLORS = [
     '#000000', '#ffffff', '#7f7f7f', '#c3c3c3',
@@ -112,36 +130,48 @@ async function getActiveCount() {
 
 async function getGridConfig() {
     if (!supabase) return { width: 800, height: 480 };
-    const { data } = await supabase
-        .from('grid_config')
-        .select('width, height')
-        .eq('id', 1)
-        .single();
-    return data || { width: 800, height: 480 };
+    try {
+        const { data, error } = await supabase
+            .from('grid_config')
+            .select('width, height')
+            .eq('id', 1)
+            .maybeSingle();
+        if (error || !data || !data.width || !data.height) {
+            return { width: 800, height: 480 };
+        }
+        return { width: Number(data.width), height: Number(data.height) };
+    } catch (e) {
+        console.error('Error fetching grid config:', e);
+        return { width: 800, height: 480 };
+    }
 }
 
-const memoryCells = new Map();
-
 async function fetchAllCells() {
-    let allCells = [];
-    if (supabase) {
+    const allCells = [];
+    if (!supabase) return allCells;
+
+    try {
         let from = 0;
-        const batchSize = 10000;
+        const batchSize = 5000;
         while (true) {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from('cells')
                 .select('x, y, color, last_user_id')
                 .range(from, from + batchSize - 1);
+
+            if (error) {
+                console.error('Error fetching cells from Supabase:', error);
+                break;
+            }
             if (!data || data.length === 0) break;
-            allCells = allCells.concat(data);
+            allCells.push(...data);
             if (data.length < batchSize) break;
             from += batchSize;
         }
-        allCells.forEach(c => {
-            memoryCells.set(`${c.x},${c.y}`, { x: c.x, y: c.y, color: c.color, last_user_id: c.last_user_id });
-        });
+    } catch (err) {
+        console.error('Error in fetchAllCells:', err);
     }
-    return Array.from(memoryCells.values());
+    return allCells;
 }
 
 async function cleanupAndPromote() {
@@ -180,6 +210,9 @@ function authenty(req, res, next) {
     if (getSession(req)) {
         return next();
     }
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ error: 'unauthorized', message: 'Authentication required.' });
+    }
     res.clearCookie(sessionCookieName);
     return res.redirect(`/login?next=${encodeURIComponent(req.originalUrl)}`);
 }
@@ -187,7 +220,10 @@ function authenty(req, res, next) {
 function isModerator(req, res, next) {
     const session = getSession(req);
     const slackId = getSlackId(session);
-    if (slackId !== MODERATOR_SLACK_ID) {
+    if (!slackId || slackId !== MODERATOR_SLACK_ID) {
+        if (req.path.startsWith('/api/')) {
+            return res.status(403).json({ error: 'forbidden', message: 'Moderator access required.' });
+        }
         return res.status(403).send('Access denied.');
     }
     next();
@@ -293,17 +329,11 @@ app.get('/place', authenty, async (req, res) => {
     const slackId = getSlackId(session);
     if (!slackId) return res.redirect('/login');
 
+    if (await isUserBanned(slackId)) {
+        return res.status(403).send('You have been banned from hc/place. If you believe this is a mistake, please appeal in <a href="https://hackclub.enterprise.slack.com/archives/C0C12BXC7ME">#vasis-room</a>.');
+    }
+
     if (supabase) {
-        const { data: user } = await supabase
-            .from('users')
-            .select('is_banned')
-            .eq('slack_id', slackId)
-            .single();
-
-        if (user?.is_banned) {
-            return res.status(403).send('You have been banned from hc/place. If you believe this is a mistake, please appeal in <a href="https://hackclub.enterprise.slack.com/archives/C0C12BXC7ME">#vasis-room</a>.');
-        }
-
         await supabase.from('users').upsert({
             slack_id: slackId,
             name: getUserName(session),
@@ -457,14 +487,11 @@ app.post('/api/click', authenty, async (req, res) => {
     const slackId = getSlackId(session);
     if (!slackId) return res.status(401).json({ error: 'unauthorized' });
 
-    if (supabase) {
-        const { data: user } = await supabase
-            .from('users')
-            .select('is_banned')
-            .eq('slack_id', slackId)
-            .single();
-        if (user?.is_banned) return res.status(403).json({ error: 'banned' });
+    if (await isUserBanned(slackId)) {
+        return res.status(403).json({ error: 'banned' });
+    }
 
+    if (supabase) {
         const { data: active } = await supabase
             .from('active_sessions')
             .select('user_id')
@@ -494,7 +521,6 @@ app.post('/api/click', authenty, async (req, res) => {
     }
 
     rateLimitMap.set(slackId, now);
-    memoryCells.set(`${x},${y}`, { x, y, color, last_user_id: slackId });
 
     if (supabase) {
         const { error: cellError } = await supabase
@@ -505,7 +531,10 @@ app.post('/api/click', authenty, async (req, res) => {
                 updated_at: new Date().toISOString()
             });
 
-        if (cellError) return res.status(500).json({ error: 'db_error' });
+        if (cellError) {
+            console.error('Error saving cell to Supabase:', cellError);
+            return res.status(500).json({ error: 'db_error' });
+        }
 
         await supabase.from('clicks').insert({
             user_id: slackId, x, y, color
@@ -611,6 +640,8 @@ app.post('/api/admin/ban', authenty, isModerator, async (req, res) => {
     const { slackId } = req.body;
     if (!slackId) return res.status(400).json({ error: 'missing_slack_id' });
 
+    bannedUsersSet.add(slackId);
+
     if (supabase) {
         await supabase.from('users').upsert({
             slack_id: slackId,
@@ -627,6 +658,8 @@ app.post('/api/admin/unban', authenty, isModerator, async (req, res) => {
     const { slackId } = req.body;
     if (!slackId) return res.status(400).json({ error: 'missing_slack_id' });
 
+    bannedUsersSet.delete(slackId);
+
     if (supabase) {
         await supabase.from('users').update({ is_banned: false }).eq('slack_id', slackId);
     }
@@ -640,11 +673,15 @@ app.post('/api/admin/reset-pixel', authenty, isModerator, async (req, res) => {
     }
 
     if (supabase) {
-        await supabase.from('cells').upsert({
+        const { error } = await supabase.from('cells').upsert({
             x, y, color: '#ffffff',
             last_user_id: 'admin',
             updated_at: new Date().toISOString()
         });
+        if (error) {
+            console.error('Error resetting pixel in Supabase:', error);
+            return res.status(500).json({ error: error.message });
+        }
     }
     res.json({ ok: true });
 });
@@ -656,12 +693,19 @@ app.post('/api/admin/resize', authenty, isModerator, async (req, res) => {
     }
 
     if (supabase) {
-        await supabase.from('grid_config').update({
-            width, height,
+        const { error } = await supabase.from('grid_config').upsert({
+            id: 1,
+            width,
+            height,
             updated_at: new Date().toISOString()
-        }).eq('id', 1);
+        }, { onConflict: 'id' });
+
+        if (error) {
+            console.error('Error resizing grid in Supabase:', error);
+            return res.status(500).json({ error: error.message });
+        }
     }
-    res.json({ ok: true });
+    res.json({ ok: true, width, height });
 });
 
 app.get('/:id', (req, res) => {
@@ -670,6 +714,11 @@ app.get('/:id', (req, res) => {
 
 setInterval(cleanupAndPromote, 15000);
 
-app.listen(3000, () => {
-    console.log('Server running on http://localhost:3000');
-});
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
+}
+
+export default app;
