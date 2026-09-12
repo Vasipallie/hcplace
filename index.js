@@ -301,7 +301,7 @@ app.get('/place', authenty, async (req, res) => {
             .single();
 
         if (user?.is_banned) {
-            return res.status(403).send('You have been banned from hc/place.');
+            return res.status(403).send('You have been banned from hc/place. If you believe this is a mistake, please appeal in <a href="https://hackclub.enterprise.slack.com/archives/C0C12BXC7ME">#vasis-room</a>.');
         }
 
         await supabase.from('users').upsert({

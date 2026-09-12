@@ -448,6 +448,8 @@
             <strong>Placed by:</strong> <span>${user ? user : '<em>Default / None</em>'}</span>
         `;
         inspectActions.style.display = 'flex';
+        document.getElementById('btn-quick-reset').innerHTML = 'Reset Pixel <strong>[R]</strong>';
+        document.getElementById('btn-quick-ban').innerHTML = 'Ban User <strong>[B]</strong>';
         document.getElementById('btn-quick-ban').style.display = user ? 'inline-block' : 'none';
         draw();
     }
@@ -559,6 +561,20 @@
             }
         } catch (e) {}
     }
+
+    window.addEventListener('keydown', (e) => {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+            return;
+        }
+        const key = e.key.toLowerCase();
+        if (key === 'r') {
+            e.preventDefault();
+            quickReset();
+        } else if (key === 'b') {
+            e.preventDefault();
+            quickBan();
+        }
+    });
 
     async function handleBan(isBan) {
         const slackId = document.getElementById('ban-slack-id').value.trim();
