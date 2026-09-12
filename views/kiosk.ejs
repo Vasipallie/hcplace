@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hc/place — Kiosk</title>
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #111111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+            image-rendering: pixelated;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="place" width="<%= locals.gridWidth || 800 %>" height="<%= locals.gridHeight || 480 %>"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = "<%= locals.supabaseUrl %>";
+        const SUPABASE_KEY = "<%= locals.supabaseKey %>";
+        let gridWidth = <%= locals.gridWidth || 800 %>;
+        let gridHeight = <%= locals.gridHeight || 480 %>;
+
+        const canvas = document.getElementById('place');
+        const ctx = canvas.getContext('2d');
+        const grid = new Map();
+
+        function setPixel(x, y, color) {
+            grid.set(`${x},${y}`, color);
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, 1, 1);
+        }
+
+        function renderAll() {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, gridWidth, gridHeight);
+            for (const [key, color] of grid.entries()) {
+                const [x, y] = key.split(',').map(Number);
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+
+        async function loadGrid() {
+            try {
+                const res = await fetch('/api/grid');
+                if (!res.ok) return;
+                const data = await res.json();
+                gridWidth = data.width;
+                gridHeight = data.height;
+                canvas.width = gridWidth;
+                canvas.height = gridHeight;
+                grid.clear();
+                if (Array.isArray(data.cells)) {
+                    data.cells.forEach(c => {
+                        grid.set(`${c.x},${c.y}`, c.color);
+                    });
+                }
+                renderAll();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        loadGrid();
+
+        if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
+            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+            client
+                .channel('kiosk:cells')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'cells' }, payload => {
+                    if (payload.new && typeof payload.new.x === 'number' && typeof payload.new.y === 'number') {
+                        setPixel(payload.new.x, payload.new.y, payload.new.color || '#ffffff');
+                    }
+                })
+                .subscribe();
+
+            client
+                .channel('kiosk:grid_config')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'grid_config' }, payload => {
+                    if (payload.new && payload.new.width && payload.new.height) {
+                        loadGrid();
+                    }
+                })
+                .subscribe();
+        }
+    </script>
+</body>
+</html>

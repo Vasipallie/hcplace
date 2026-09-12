@@ -11,20 +11,15 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "cookie-parser": "^1.4.7",
-    "crypto": "^1.0.1",
     "dotenv": "^17.4.2",
     "ejs": "^6.0.1",
     "express": "^5.2.1",
-    "http": "^0.0.1-security",
-    "jsonwebtoken": "^9.0.3",
-    "multer": "^2.3.0",
-    "path": "^0.12.7",
-    "socket.io": "^4.8.3",
-    "url": "^0.11.4"
+    "jsonwebtoken": "^9.0.3"
   }
 }

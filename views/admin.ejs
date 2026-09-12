@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hc/place — Admin</title>
+    <link rel="icon" href="/favicon.png" type="image/png">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+        *, *::before, *::after{
+            box-sizing:border-box;
+        }
+        html,body{
+            margin:0;
+            min-height:100%;
+            background:url('paper.png') repeat;
+            background-color:#FCF8E7;
+            font-family:'Instrument Serif', serif;
+            font-size:clamp(1rem, 1.2vw + 0.75rem, 1.2rem);
+        }
+        body{
+            display:flex;
+            flex-direction:column;
+            gap:1rem;
+            padding:0 clamp(0.75rem, 3vw, 3rem);
+        }
+        main{
+            width:min(100%, 65rem);
+            margin:0 auto;
+        }
+        .nav{
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            align-items:center;
+        }
+        .nav img{
+            display:block;
+            width:min(100%, 20rem);
+            height:auto;
+        }
+        .nav-links{
+            display:flex;
+            flex-wrap:wrap;
+            justify-content:center;
+            align-items:center;
+            width:100%;
+            padding:0.45rem 0.75rem;
+            text-align:center;
+            border-block:0.2em #000000 double;
+        }
+        .card{
+            background: rgba(255,255,255,0.85);
+            border: 2px solid #000000;
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .form-row{
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        input{
+            padding: 0.4rem 0.6rem;
+            border: 1px solid #000000;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        button{
+            padding: 0.4rem 0.8rem;
+            background-color: #ec3750;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        button:hover{
+            background-color: #a633d6;
+        }
+        .btn-secondary{
+            background-color: #338eda;
+        }
+        table{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+        }
+        th, td{
+            border: 1px solid #000000;
+            padding: 0.4rem;
+            text-align: left;
+        }
+        a{
+            color:#338eda;
+            font-weight:bold;
+        }
+        canvas{
+            display: block;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+            background-color: #ffffff;
+            border: 2px solid #444444;
+            image-rendering: pixelated;
+            cursor: crosshair;
+            user-select: none;
+        }
+        .inspector{
+            background: #ffffff;
+            border: 2px solid #000000;
+            border-radius: 4px;
+            padding: 0.6rem 1rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+        }
+        .color-dot{
+            display: inline-block;
+            width: 1.2rem;
+            height: 1.2rem;
+            border: 1px solid #000000;
+            vertical-align: middle;
+            margin-left: 0.3rem;
+            margin-right: 0.3rem;
+        }
+        .admin-colors{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            margin-top: 0.5rem;
+        }
+        .admin-color{
+            width: 1.8rem;
+            height: 1.8rem;
+            border: 1px solid #000000;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<main>
+    <div class="nav">
+        <img src="hcplace.svg" alt="hc/place">
+        <div class="nav-links">
+            <span>Admin Moderation Dashboard | <a href="/place">Back to Main Canvas</a></span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Live Canvas</h3>
+        <canvas id="place" width="1280" height="720"></canvas>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-top:0.3rem; font-size:0.95rem;">
+            <div id="zoom-info">Zoom: 1.0x</div>
+            <div style="display:flex; gap:0.3rem; align-items:center;">
+                <button type="button" id="btn-admin-zoom-in" style="padding:0.2rem 0.5rem; background:#ec3750; color:#fff; border:none; border-radius:3px; cursor:pointer;">+ Zoom In</button>
+                <button type="button" id="btn-admin-zoom-out" style="padding:0.2rem 0.5rem; background:#ec3750; color:#fff; border:none; border-radius:3px; cursor:pointer;">- Zoom Out</button>
+                <button type="button" id="btn-admin-zoom-reset" style="padding:0.2rem 0.5rem; background:#338eda; color:#fff; border:none; border-radius:3px; cursor:pointer;">Reset View</button>
+            </div>
+        </div>
+
+        <div class="inspector" id="inspector">
+            <div id="inspect-info">
+                Hover over a pixel to inspect details...
+            </div>
+            <div id="inspect-actions" style="display:none; gap:0.4rem; display:flex;">
+                <button id="btn-quick-reset" onclick="quickReset()">Reset Pixel</button>
+                <button id="btn-quick-ban" class="btn-secondary" onclick="quickBan()">Ban User</button>
+            </div>
+        </div>
+
+        <div style="margin-top: 0.5rem;">
+            <strong>Admin Color:</strong>
+            <div class="admin-colors">
+                <div class="admin-color" style="background-color:#000000; outline:2px solid #ec3750;" data-color="#000000"></div>
+                <div class="admin-color" style="background-color:#ffffff;" data-color="#ffffff"></div>
+                <div class="admin-color" style="background-color:#7f7f7f;" data-color="#7f7f7f"></div>
+                <div class="admin-color" style="background-color:#c3c3c3;" data-color="#c3c3c3"></div>
+                <div class="admin-color" style="background-color:#880015;" data-color="#880015"></div>
+                <div class="admin-color" style="background-color:#ed1c24;" data-color="#ed1c24"></div>
+                <div class="admin-color" style="background-color:#ff7f27;" data-color="#ff7f27"></div>
+                <div class="admin-color" style="background-color:#fff200;" data-color="#fff200"></div>
+                <div class="admin-color" style="background-color:#22b14c;" data-color="#22b14c"></div>
+                <div class="admin-color" style="background-color:#00a2e8;" data-color="#00a2e8"></div>
+                <div class="admin-color" style="background-color:#3f48cc;" data-color="#3f48cc"></div>
+                <div class="admin-color" style="background-color:#a349a4;" data-color="#a349a4"></div>
+                <div class="admin-color" style="background-color:#ffaec9;" data-color="#ffaec9"></div>
+                <div class="admin-color" style="background-color:#b97a57;" data-color="#b97a57"></div>
+                <div class="admin-color" style="background-color:#7092be;" data-color="#7092be"></div>
+                <div class="admin-color" style="background-color:#99d9ea;" data-color="#99d9ea"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Live Stats</h3>
+        <p>Active Admitted Users: <strong><%= locals.activeCount %></strong></p>
+        <p>Users in Queue: <strong><%= locals.queueCount %></strong></p>
+        <p>Canvas Dimensions: <strong><%= locals.gridWidth %> x <%= locals.gridHeight %></strong></p>
+    </div>
+
+    <div class="card">
+        <h3>Ban / Unban User</h3>
+        <div class="form-row">
+            <input type="text" id="ban-slack-id" placeholder="Slack ID (e.g. U12345678)" style="flex:1;">
+            <button onclick="handleBan(true)">Ban User</button>
+            <button class="btn-secondary" onclick="handleBan(false)">Unban User</button>
+        </div>
+        <div id="ban-msg" style="margin-top:0.5rem; font-weight:bold;"></div>
+    </div>
+
+    <div class="card">
+        <h3>Censor / Reset Pixel</h3>
+        <div class="form-row">
+            <input type="number" id="reset-x" placeholder="X coordinate" style="width: 120px;">
+            <input type="number" id="reset-y" placeholder="Y coordinate" style="width: 120px;">
+            <button onclick="handleResetPixel()">Reset to White</button>
+        </div>
+        <div id="reset-msg" style="margin-top:0.5rem; font-weight:bold;"></div>
+    </div>
+
+    <div class="card">
+        <h3>Resize Grid</h3>
+        <div class="form-row">
+            <input type="number" id="resize-w" placeholder="Width" value="<%= locals.gridWidth %>" style="width: 120px;">
+            <input type="number" id="resize-h" placeholder="Height" value="<%= locals.gridHeight %>" style="width: 120px;">
+            <button onclick="handleResize()">Update Dimensions</button>
+        </div>
+        <div id="resize-msg" style="margin-top:0.5rem; font-weight:bold;"></div>
+    </div>
+
+    <div class="card">
+        <h3>Banned Users</h3>
+        <% if (locals.bannedUsers && locals.bannedUsers.length > 0) { %>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Slack ID</th>
+                        <th>Name</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% locals.bannedUsers.forEach(u => { %>
+                        <tr>
+                            <td><%= u.slack_id %></td>
+                            <td><%= u.name || 'Unknown' %></td>
+                            <td><button class="btn-secondary" onclick="unbanDirect('<%= u.slack_id %>')">Unban</button></td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } else { %>
+            <p>No banned users.</p>
+        <% } %>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const SUPABASE_URL = "<%= locals.supabaseUrl %>";
+    const SUPABASE_KEY = "<%= locals.supabaseKey %>";
+    let gridWidth = <%= locals.gridWidth || 800 %>;
+    let gridHeight = <%= locals.gridHeight || 480 %>;
+
+    const displayCanvas = document.getElementById('place');
+    const displayCtx = displayCanvas.getContext('2d');
+    const inspectInfo = document.getElementById('inspect-info');
+    const inspectActions = document.getElementById('inspect-actions');
+    const zoomInfo = document.getElementById('zoom-info');
+
+    const bufferCanvas = document.createElement('canvas');
+    bufferCanvas.width = gridWidth;
+    bufferCanvas.height = gridHeight;
+    const bufferCtx = bufferCanvas.getContext('2d');
+    bufferCtx.fillStyle = '#ffffff';
+    bufferCtx.fillRect(0, 0, gridWidth, gridHeight);
+
+    let selectedColor = '#000000';
+    let hoveredX = null;
+    let hoveredY = null;
+    let hoveredUser = null;
+    let grid = new Map();
+
+    let zoom = 1;
+    let panX = 0;
+    let panY = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let hasDragged = false;
+
+    const colorBoxes = document.querySelectorAll('.admin-color');
+    colorBoxes.forEach(box => {
+        box.addEventListener('click', () => {
+            colorBoxes.forEach(b => b.style.outline = 'none');
+            box.style.outline = '2px solid #ec3750';
+            selectedColor = box.getAttribute('data-color');
+        });
+    });
+
+    function setPixel(x, y, color, lastUserId = null) {
+        grid.set(`${x},${y}`, { color, lastUserId });
+        bufferCtx.fillStyle = color;
+        bufferCtx.fillRect(x, y, 1, 1);
+        draw();
+    }
+
+    function draw() {
+        displayCtx.imageSmoothingEnabled = false;
+        displayCtx.fillStyle = '#eaeaea';
+        displayCtx.fillRect(0, 0, displayCanvas.width, displayCanvas.height);
+
+        displayCtx.save();
+        displayCtx.translate(panX, panY);
+        displayCtx.scale(zoom, zoom);
+
+        displayCtx.drawImage(bufferCanvas, 0, 0);
+
+        if (zoom >= 8) {
+            displayCtx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+            displayCtx.lineWidth = 1 / zoom;
+            for (let x = 0; x <= gridWidth; x++) {
+                displayCtx.beginPath();
+                displayCtx.moveTo(x, 0);
+                displayCtx.lineTo(x, gridHeight);
+                displayCtx.stroke();
+            }
+            for (let y = 0; y <= gridHeight; y++) {
+                displayCtx.beginPath();
+                displayCtx.moveTo(0, y);
+                displayCtx.lineTo(gridWidth, y);
+                displayCtx.stroke();
+            }
+        }
+
+        if (hoveredX !== null && hoveredY !== null && hoveredX >= 0 && hoveredX < gridWidth && hoveredY >= 0 && hoveredY < gridHeight) {
+            displayCtx.strokeStyle = '#ec3750';
+            displayCtx.lineWidth = Math.max(1, 2 / zoom);
+            displayCtx.strokeRect(hoveredX, hoveredY, 1, 1);
+        }
+
+        displayCtx.restore();
+        zoomInfo.textContent = `Zoom: ${zoom.toFixed(1)}x`;
+    }
+
+    function resetView() {
+        const scaleX = displayCanvas.width / gridWidth;
+        const scaleY = displayCanvas.height / gridHeight;
+        zoom = Math.min(scaleX, scaleY);
+        panX = (displayCanvas.width - (gridWidth * zoom)) / 2;
+        panY = (displayCanvas.height - (gridHeight * zoom)) / 2;
+        draw();
+    }
+
+    function zoomAt(targetZoom, clientX, clientY) {
+        const clampedZoom = Math.max(0.5, Math.min(64, targetZoom));
+        const mouseCanvasX = (clientX - panX) / zoom;
+        const mouseCanvasY = (clientY - panY) / zoom;
+
+        zoom = clampedZoom;
+        panX = clientX - (mouseCanvasX * zoom);
+        panY = clientY - (mouseCanvasY * zoom);
+        draw();
+    }
+
+    function screenToGrid(e) {
+        const rect = displayCanvas.getBoundingClientRect();
+        const clientX = (e.clientX - rect.left) * (displayCanvas.width / rect.width);
+        const clientY = (e.clientY - rect.top) * (displayCanvas.height / rect.height);
+        const gridX = Math.floor((clientX - panX) / zoom);
+        const gridY = Math.floor((clientY - panY) / zoom);
+        return { gridX, gridY, clientX, clientY };
+    }
+
+    async function loadGrid() {
+        try {
+            const res = await fetch('/api/grid');
+            if (!res.ok) return;
+            const data = await res.json();
+            gridWidth = data.width;
+            gridHeight = data.height;
+            bufferCanvas.width = gridWidth;
+            bufferCanvas.height = gridHeight;
+            bufferCtx.fillStyle = '#ffffff';
+            bufferCtx.fillRect(0, 0, gridWidth, gridHeight);
+            grid.clear();
+            if (Array.isArray(data.cells)) {
+                data.cells.forEach(c => {
+                    grid.set(`${c.x},${c.y}`, { color: c.color, lastUserId: c.last_user_id || null });
+                    bufferCtx.fillStyle = c.color;
+                    bufferCtx.fillRect(c.x, c.y, 1, 1);
+                });
+            }
+            resetView();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    loadGrid();
+
+    if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        client
+            .channel('admin:cells')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cells' }, payload => {
+                if (payload.new && typeof payload.new.x === 'number' && typeof payload.new.y === 'number') {
+                    setPixel(payload.new.x, payload.new.y, payload.new.color || '#ffffff', payload.new.last_user_id || null);
+                    if (hoveredX === payload.new.x && hoveredY === payload.new.y) {
+                        updateInspector(hoveredX, hoveredY);
+                    }
+                }
+            })
+            .subscribe();
+
+        client
+            .channel('admin:grid_config')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'grid_config' }, payload => {
+                if (payload.new && payload.new.width && payload.new.height) {
+                    loadGrid();
+                }
+            })
+            .subscribe();
+    }
+
+    function updateInspector(x, y) {
+        hoveredX = x;
+        hoveredY = y;
+        const cellData = grid.get(`${x},${y}`);
+        const color = cellData ? cellData.color : '#ffffff';
+        const user = cellData ? cellData.lastUserId : null;
+        hoveredUser = user;
+
+        inspectInfo.innerHTML = `
+            <strong>Coordinate:</strong> (${x}, ${y}) |
+            <strong>Color:</strong> <span class="color-dot" style="background-color:${color};"></span> ${color} |
+            <strong>Placed by:</strong> <span>${user ? user : '<em>Default / None</em>'}</span>
+        `;
+        inspectActions.style.display = 'flex';
+        document.getElementById('btn-quick-ban').style.display = user ? 'inline-block' : 'none';
+        draw();
+    }
+
+    displayCanvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.25 : 0.8;
+        const rect = displayCanvas.getBoundingClientRect();
+        const clientX = (e.clientX - rect.left) * (displayCanvas.width / rect.width);
+        const clientY = (e.clientY - rect.top) * (displayCanvas.height / rect.height);
+        zoomAt(zoom * factor, clientX, clientY);
+    }, { passive: false });
+
+    displayCanvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        hasDragged = false;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            const dx = (e.clientX - dragStartX) * (displayCanvas.width / displayCanvas.clientWidth);
+            const dy = (e.clientY - dragStartY) * (displayCanvas.height / displayCanvas.clientHeight);
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                hasDragged = true;
+            }
+            panX += dx;
+            panY += dy;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            draw();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    displayCanvas.addEventListener('mousemove', (e) => {
+        const { gridX, gridY } = screenToGrid(e);
+        if (gridX >= 0 && gridX < gridWidth && gridY >= 0 && gridY < gridHeight) {
+            updateInspector(gridX, gridY);
+        }
+    });
+
+    displayCanvas.addEventListener('mouseleave', () => {
+        hoveredX = null;
+        hoveredY = null;
+        draw();
+    });
+
+    displayCanvas.addEventListener('click', async (e) => {
+        if (hasDragged) return;
+
+        const { gridX: x, gridY: y } = screenToGrid(e);
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) return;
+
+        setPixel(x, y, selectedColor, 'admin');
+        updateInspector(x, y);
+
+        try {
+            await fetch('/api/click', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x, y, color: selectedColor })
+            });
+        } catch (e) {}
+    });
+
+    document.getElementById('btn-admin-zoom-in').addEventListener('click', () => {
+        zoomAt(zoom * 1.5, displayCanvas.width / 2, displayCanvas.height / 2);
+    });
+
+    document.getElementById('btn-admin-zoom-out').addEventListener('click', () => {
+        zoomAt(zoom / 1.5, displayCanvas.width / 2, displayCanvas.height / 2);
+    });
+
+    document.getElementById('btn-admin-zoom-reset').addEventListener('click', () => {
+        resetView();
+    });
+
+    async function quickReset() {
+        if (hoveredX === null || hoveredY === null) return;
+        setPixel(hoveredX, hoveredY, '#ffffff', null);
+        updateInspector(hoveredX, hoveredY);
+        try {
+            await fetch('/api/admin/reset-pixel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x: hoveredX, y: hoveredY })
+            });
+        } catch (e) {}
+    }
+
+    async function quickBan() {
+        if (!hoveredUser) return;
+        if (!confirm(`Are you sure you want to ban user ${hoveredUser}?`)) return;
+        try {
+            const res = await fetch('/api/admin/ban', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slackId: hoveredUser })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                alert(`User ${hoveredUser} has been banned.`);
+                window.location.reload();
+            }
+        } catch (e) {}
+    }
+
+    async function handleBan(isBan) {
+        const slackId = document.getElementById('ban-slack-id').value.trim();
+        const msg = document.getElementById('ban-msg');
+        if (!slackId) return;
+        const endpoint = isBan ? '/api/admin/ban' : '/api/admin/unban';
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slackId })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                msg.textContent = `User ${slackId} ${isBan ? 'banned' : 'unbanned'} successfully.`;
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                msg.textContent = `Error: ${data.error}`;
+            }
+        } catch (e) {
+            msg.textContent = 'Request failed.';
+        }
+    }
+
+    async function unbanDirect(slackId) {
+        try {
+            const res = await fetch('/api/admin/unban', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slackId })
+            });
+            if (res.ok) window.location.reload();
+        } catch (e) {}
+    }
+
+    async function handleResetPixel() {
+        const x = parseInt(document.getElementById('reset-x').value);
+        const y = parseInt(document.getElementById('reset-y').value);
+        const msg = document.getElementById('reset-msg');
+        if (isNaN(x) || isNaN(y)) return;
+        try {
+            const res = await fetch('/api/admin/reset-pixel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x, y })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                msg.textContent = `Pixel (${x}, ${y}) reset to white.`;
+            } else {
+                msg.textContent = `Error: ${data.error}`;
+            }
+        } catch (e) {
+            msg.textContent = 'Request failed.';
+        }
+    }
+
+    async function handleResize() {
+        const width = parseInt(document.getElementById('resize-w').value);
+        const height = parseInt(document.getElementById('resize-h').value);
+        const msg = document.getElementById('resize-msg');
+        if (isNaN(width) || isNaN(height)) return;
+        try {
+            const res = await fetch('/api/admin/resize', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ width, height })
+            });
+            const data = await res.json();
+        } catch (e) {
+            msg.textContent = 'Request failed.';
+        }
+    }
+</script>
+</body>
+</html>

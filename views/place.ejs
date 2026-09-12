@@ -82,6 +82,9 @@
             aspect-ratio:16 / 9;
             background-color:#ffffff;
             border:2px solid #444444;
+            image-rendering:pixelated;
+            cursor:crosshair;
+            user-select:none;
         }
         .footer{
             margin-top:auto;
@@ -155,7 +158,7 @@
             aspect-ratio:1 / 1;
             border:0.15rem solid #000000;
             margin:0.25rem;
-            
+            cursor:pointer;
         }
         .colors{
             background-color:#ffffff;
@@ -171,6 +174,9 @@
 <body>
     <div class="alert">
         Welcome to hc/place, <%=locals.name%>!
+        <% if (locals.isModerator) { %>
+            <a href="/admin" style="margin-left: 1rem; text-decoration: underline;">Admin Panel</a>
+        <% } %>
     </div>
 <main>
     <div class="nav">
@@ -180,11 +186,23 @@
         </div>
     </div>
     <div class="content">
-        <canvas id="place" width="1280" height="720"></canvas>
+        <div>
+            <canvas id="place" width="1280" height="720"></canvas>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-top:0.3rem; font-size:0.95rem;">
+                <div id="status-coords">Scroll to zoom &bull; Drag to pan</div>
+                <div style="display:flex; gap:0.3rem; align-items:center;">
+                    <button type="button" id="btn-zoom-in" style="padding:0.2rem 0.5rem; background:#ec3750; color:#fff; border:none; border-radius:3px; cursor:pointer;">+ Zoom In</button>
+                    <button type="button" id="btn-zoom-out" style="padding:0.2rem 0.5rem; background:#ec3750; color:#fff; border:none; border-radius:3px; cursor:pointer;">- Zoom Out</button>
+                    <button type="button" id="btn-zoom-reset" style="padding:0.2rem 0.5rem; background:#338eda; color:#fff; border:none; border-radius:3px; cursor:pointer;">Reset View</button>
+                </div>
+            </div>
+            <div id="cooldown-text" style="text-align:center; padding:0.2rem; font-size:1rem; font-weight:bold;"></div>
+        </div>
         <div class="holdes">
             <iframe src="https://www.youtube.com/embed/NznHMCHy79s?si=Pr67Y18BRW7xiXPA" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            <div style="font-weight:bold; font-size:1rem; width:100%; text-align:center;">Selected Color: <span id="selected-preview" style="display:inline-block; width:1rem; height:1rem; border:1px solid #000; vertical-align:middle; background:#000000;"></span> <span id="selected-hex">#000000</span></div>
             <div class="colors">
-                <div class="color" style="background-color:#000000;" data-color="#000000"></div>
+                <div class="color" style="background-color:#000000; outline: 3px solid #ec3750;" data-color="#000000"></div>
                 <div class="color" style="background-color:#ffffff;" data-color="#ffffff"></div>
                 <div class="color" style="background-color:#7f7f7f;" data-color="#7f7f7f"></div>
                 <div class="color" style="background-color:#c3c3c3;" data-color="#c3c3c3"></div>
@@ -204,5 +222,299 @@
         </div>
     </div>
 </main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const SUPABASE_URL = "<%= locals.supabaseUrl %>";
+    const SUPABASE_KEY = "<%= locals.supabaseKey %>";
+    let gridWidth = <%= locals.gridWidth || 800 %>;
+    let gridHeight = <%= locals.gridHeight || 480 %>;
+
+    const displayCanvas = document.getElementById('place');
+    const displayCtx = displayCanvas.getContext('2d');
+    const cooldownEl = document.getElementById('cooldown-text');
+    const coordsEl = document.getElementById('status-coords');
+    const selectedPreview = document.getElementById('selected-preview');
+    const selectedHex = document.getElementById('selected-hex');
+
+    const bufferCanvas = document.createElement('canvas');
+    bufferCanvas.width = gridWidth;
+    bufferCanvas.height = gridHeight;
+    const bufferCtx = bufferCanvas.getContext('2d');
+    bufferCtx.fillStyle = '#ffffff';
+    bufferCtx.fillRect(0, 0, gridWidth, gridHeight);
+
+    let selectedColor = '#000000';
+    let canPlace = true;
+    let cooldownTimer = null;
+    let grid = new Map();
+
+    let zoom = 1;
+    let panX = 0;
+    let panY = 0;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let hasDragged = false;
+    let hoverX = null;
+    let hoverY = null;
+
+    const colorBoxes = document.querySelectorAll('.color');
+    colorBoxes.forEach(box => {
+        box.addEventListener('click', () => {
+            colorBoxes.forEach(b => b.style.outline = 'none');
+            box.style.outline = '3px solid #ec3750';
+            selectedColor = box.getAttribute('data-color');
+            selectedPreview.style.backgroundColor = selectedColor;
+            selectedHex.textContent = selectedColor;
+        });
+    });
+
+    function setPixelInBuffer(x, y, color) {
+        grid.set(`${x},${y}`, color);
+        bufferCtx.fillStyle = color;
+        bufferCtx.fillRect(x, y, 1, 1);
+        draw();
+    }
+
+    function draw() {
+        displayCtx.imageSmoothingEnabled = false;
+        displayCtx.fillStyle = '#eaeaea';
+        displayCtx.fillRect(0, 0, displayCanvas.width, displayCanvas.height);
+
+        displayCtx.save();
+        displayCtx.translate(panX, panY);
+        displayCtx.scale(zoom, zoom);
+
+        displayCtx.drawImage(bufferCanvas, 0, 0);
+
+        if (zoom >= 8) {
+            displayCtx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+            displayCtx.lineWidth = 1 / zoom;
+            for (let x = 0; x <= gridWidth; x++) {
+                displayCtx.beginPath();
+                displayCtx.moveTo(x, 0);
+                displayCtx.lineTo(x, gridHeight);
+                displayCtx.stroke();
+            }
+            for (let y = 0; y <= gridHeight; y++) {
+                displayCtx.beginPath();
+                displayCtx.moveTo(0, y);
+                displayCtx.lineTo(gridWidth, y);
+                displayCtx.stroke();
+            }
+        }
+
+        if (hoverX !== null && hoverY !== null && hoverX >= 0 && hoverX < gridWidth && hoverY >= 0 && hoverY < gridHeight) {
+            displayCtx.strokeStyle = '#ec3750';
+            displayCtx.lineWidth = Math.max(1, 2 / zoom);
+            displayCtx.strokeRect(hoverX, hoverY, 1, 1);
+        }
+
+        displayCtx.restore();
+    }
+
+    function resetView() {
+        const scaleX = displayCanvas.width / gridWidth;
+        const scaleY = displayCanvas.height / gridHeight;
+        zoom = Math.min(scaleX, scaleY);
+        panX = (displayCanvas.width - (gridWidth * zoom)) / 2;
+        panY = (displayCanvas.height - (gridHeight * zoom)) / 2;
+        draw();
+    }
+
+    function zoomAt(targetZoom, clientX, clientY) {
+        const clampedZoom = Math.max(0.5, Math.min(64, targetZoom));
+        const mouseCanvasX = (clientX - panX) / zoom;
+        const mouseCanvasY = (clientY - panY) / zoom;
+
+        zoom = clampedZoom;
+        panX = clientX - (mouseCanvasX * zoom);
+        panY = clientY - (mouseCanvasY * zoom);
+        draw();
+    }
+
+    function screenToGrid(e) {
+        const rect = displayCanvas.getBoundingClientRect();
+        const clientX = (e.clientX - rect.left) * (displayCanvas.width / rect.width);
+        const clientY = (e.clientY - rect.top) * (displayCanvas.height / rect.height);
+        const gridX = Math.floor((clientX - panX) / zoom);
+        const gridY = Math.floor((clientY - panY) / zoom);
+        return { gridX, gridY, clientX, clientY };
+    }
+
+    async function loadGrid() {
+        try {
+            const res = await fetch('/api/grid');
+            if (!res.ok) return;
+            const data = await res.json();
+            gridWidth = data.width;
+            gridHeight = data.height;
+            bufferCanvas.width = gridWidth;
+            bufferCanvas.height = gridHeight;
+            bufferCtx.fillStyle = '#ffffff';
+            bufferCtx.fillRect(0, 0, gridWidth, gridHeight);
+            grid.clear();
+            if (Array.isArray(data.cells)) {
+                data.cells.forEach(c => {
+                    grid.set(`${c.x},${c.y}`, c.color);
+                    bufferCtx.fillStyle = c.color;
+                    bufferCtx.fillRect(c.x, c.y, 1, 1);
+                });
+            }
+            resetView();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    loadGrid();
+
+    if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
+        const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        client
+            .channel('public:cells')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cells' }, payload => {
+                if (payload.new && typeof payload.new.x === 'number' && typeof payload.new.y === 'number') {
+                    setPixelInBuffer(payload.new.x, payload.new.y, payload.new.color || '#ffffff');
+                }
+            })
+            .subscribe();
+
+        client
+            .channel('public:grid_config')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'grid_config' }, payload => {
+                if (payload.new && payload.new.width && payload.new.height) {
+                    loadGrid();
+                }
+            })
+            .subscribe();
+    }
+
+    function startCooldown(durationMs) {
+        canPlace = false;
+        let remaining = Math.ceil(durationMs / 1000);
+        cooldownEl.textContent = `Cooldown: ${remaining}s`;
+        if (cooldownTimer) clearInterval(cooldownTimer);
+        cooldownTimer = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(cooldownTimer);
+                cooldownTimer = null;
+                canPlace = true;
+                cooldownEl.textContent = '';
+            } else {
+                cooldownEl.textContent = `Cooldown: ${remaining}s`;
+            }
+        }, 1000);
+    }
+
+    displayCanvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.25 : 0.8;
+        const rect = displayCanvas.getBoundingClientRect();
+        const clientX = (e.clientX - rect.left) * (displayCanvas.width / rect.width);
+        const clientY = (e.clientY - rect.top) * (displayCanvas.height / rect.height);
+        zoomAt(zoom * factor, clientX, clientY);
+    }, { passive: false });
+
+    displayCanvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        hasDragged = false;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            const dx = (e.clientX - dragStartX) * (displayCanvas.width / displayCanvas.clientWidth);
+            const dy = (e.clientY - dragStartY) * (displayCanvas.height / displayCanvas.clientHeight);
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                hasDragged = true;
+            }
+            panX += dx;
+            panY += dy;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            draw();
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    displayCanvas.addEventListener('mousemove', (e) => {
+        const { gridX, gridY } = screenToGrid(e);
+        hoverX = gridX;
+        hoverY = gridY;
+        if (gridX >= 0 && gridX < gridWidth && gridY >= 0 && gridY < gridHeight) {
+            const cellColor = grid.get(`${gridX},${gridY}`) || '#ffffff';
+            coordsEl.innerHTML = `Pixel: (${gridX}, ${gridY}) &bull; Current Color: <span style="display:inline-block; width:0.8rem; height:0.8rem; background:${cellColor}; border:1px solid #000; vertical-align:middle;"></span> ${cellColor} &bull; Zoom: ${zoom.toFixed(1)}x`;
+        } else {
+            coordsEl.textContent = `Scroll to zoom \u2022 Drag to pan \u2022 Zoom: ${zoom.toFixed(1)}x`;
+        }
+        draw();
+    });
+
+    displayCanvas.addEventListener('mouseleave', () => {
+        hoverX = null;
+        hoverY = null;
+        draw();
+    });
+
+    displayCanvas.addEventListener('click', async (e) => {
+        if (hasDragged) return;
+        if (!canPlace) return;
+
+        const { gridX: x, gridY: y } = screenToGrid(e);
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight) return;
+
+        const prevColor = grid.get(`${x},${y}`) || '#ffffff';
+        setPixelInBuffer(x, y, selectedColor);
+        startCooldown(3000);
+
+        try {
+            const res = await fetch('/api/click', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x, y, color: selectedColor })
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                if (data.error === 'rate_limited') {
+                    startCooldown(data.retryAfter || 3000);
+                } else if (data.error === 'banned') {
+                    alert('You have been banned from hc/place.');
+                    window.location.reload();
+                } else if (data.error === 'not_admitted') {
+                    window.location.href = '/queue';
+                }
+                setPixelInBuffer(x, y, prevColor);
+            }
+        } catch (err) {
+            setPixelInBuffer(x, y, prevColor);
+        }
+    });
+
+    document.getElementById('btn-zoom-in').addEventListener('click', () => {
+        zoomAt(zoom * 1.5, displayCanvas.width / 2, displayCanvas.height / 2);
+    });
+
+    document.getElementById('btn-zoom-out').addEventListener('click', () => {
+        zoomAt(zoom / 1.5, displayCanvas.width / 2, displayCanvas.height / 2);
+    });
+
+    document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+        resetView();
+    });
+
+    setInterval(async () => {
+        try {
+            await fetch('/api/heartbeat', { method: 'POST' });
+        } catch (e) {}
+    }, 10000);
+</script>
 </body>
 </html>

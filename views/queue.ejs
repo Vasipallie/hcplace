@@ -128,7 +128,7 @@
 </head>
 <body>
     <div class="alert">
-        hc/place is currently at its limit, We've placed you in a queue <!-- I NEED TO FIGURE OUT A QUEUE DISPLAY SYSTEM TOO THAT ALLOWS THE USER TO SUBSCRIBE TO THE THING --> . Please wait for an available session.
+        hc/place is currently at capacity. Your queue position is: <strong id="queue-pos"><%= locals.position || 1 %></strong>. You will automatically enter when a slot frees up.
     </div>
 <main>
     <div class="nav">
@@ -139,10 +139,30 @@
     </div>
     <div class="content">
         <iframe src="https://www.youtube.com/embed/NznHMCHy79s?si=Pr67Y18BRW7xiXPA" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <span class="subtitle">Watch the live canvas while you wait. Your session will launch as soon as you reach the front of the queue.</span>
     </div>
 </main>
     <div class="nav-links footer">
        <span>An unofficial project @ hackclub, view the code on <a href="https://github.com/vasipallie/hcplace">GitHub</a></span>
     </div>
+
+<script>
+    const posEl = document.getElementById('queue-pos');
+    async function checkQueue() {
+        try {
+            const res = await fetch('/api/queue/check');
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.admitted) {
+                window.location.href = '/place';
+                return;
+            }
+            if (data.position && posEl) {
+                posEl.textContent = data.position;
+            }
+        } catch (e) {}
+    }
+    setInterval(checkQueue, 4000);
+</script>
 </body>
 </html>
